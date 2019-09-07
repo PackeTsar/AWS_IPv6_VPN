@@ -15,7 +15,7 @@ This document provides a workaround solution for this limitation by using an **E
 ## Overview
 - **Example Settings**
 - **Launch a VPN Gateway EC2 instance**
-- **Configure VPC for new VPN**
+- **Configure your VPC for new VPN**
 - **Configure the remote VPN concentrator**
 - **Install and configure strongSwan**
 - **OPTIONAL: IPv4 and IPv6 over the New Tunnel**
@@ -53,19 +53,21 @@ For the example, make sure to assign the IPv6 address **2001:DB8:0:A::10** to th
 
 
 -----------------------------------------
-## Configure VPC for new VPN
+## Configure your VPC for new VPN
 
 - Adjust the network settings on the instance by disabling source address checking
   - This needs to be done to allow the instance to de-encapsulate VPN packets and let them emerge onto the VPC from the instance's interface
   - This can be found by selecting the EC2 instance and going to **Actions > Networking > Change Source/Dest. Check**
 
-- Adjust the route tables for both subnets to route the customer tunneled /48 network towards the instance, but route the customer VPN concentrator peer IP towards the Internet Gateway
+- Adjust the route tables for your subnets to route the customer tunneled /48 network towards the instance, but route the customer VPN concentrator peer IP towards the Internet Gateway for the subnet holding the Ubuntu instance
   - This would look something like the Below
 
 ```
 2001:DB8:C::/48              eni-1a2b3c4d5e6f
 2001:DB8:0:C::10/128         igw-1a2b3c4d
 ```
+
+- If you are already routing `::/0` towards an Internet Gateway and the Customer Tunneled Network does not overlap with the Customer Peer IP, then the /128 route is not necessary
 
 
 
@@ -154,13 +156,13 @@ conn customer_vpn_v6
 ## OPTIONAL: IPv4 and IPv6 over the New Tunnel
 If you have made it this far, you may be asking yourself why you would want to run IPv6 over a strongSwan IPSEC tunnel on an EC2 instance, and IPv4 over a managed AWS VPN service. There are a couple of benefits which come to mind with the AWS service
 
-1. **Redundancy**: AWS gives you multiple peer IPs to use for the managed VPN service which provides a level of redundancy within a region. They also allow you to automatically propagate the VPN tunneled routes into the VPC Route Tables when the VPn comes up to further enhance this functionality
+1. **Redundancy**: AWS gives you multiple peer IPs to use for the managed VPN service which provides a level of redundancy within a region. They also allow you to automatically propagate the VPN tunneled routes into the VPC Route Tables when the VPN comes up to further enhance this functionality
 
 2. **Ease of Management**: The managed VPN service is managed by AWS and does not require any kind of regular updates or the typical care and feeding of a Linux instance
 
 Those benefits aside, there are a few benefits to abandoning the managed VPN service and using the EC2 instance for both IPv4 and IPv6:
 
-1. **Cost**: The cost of the managed VPN service from AWS in the Ohio region is **$0.05 per hour** which equates to about **$36 per month**. The cost of a t3a.nano instance running strongSwan is **$0.0047 per hour** which equates to about **$3.38 per month**, about one-tenth the cost
+1. **Cost**: The cost of the managed VPN service from AWS in the Ohio region is **$0.05 per hour** which equates to about **$36 per month**. The cost of a t3a.nano instance running strongSwan is **$0.0047 per hour** which equates to about **$3.38 per month**: about one-tenth the cost
 
 2. **Functionality**: If you are a bit network-savvy, then you likely know that you can take a solution like this to a whole different level if desired. Using a VTI with routing protocols, multiple tunnels with multiple paths, the sky is the limit when it comes to networking using Linux. Running IPv4 + IPv6 over the same VPN tunnel is only the beginning
 
@@ -178,7 +180,13 @@ Below are the details used in the examples in this document
 
 Below are the steps to extend the IPv6 tunnel built above to also carry IPv4
 
-- On the Ubuntu server, uncomment the line `net.ipv4.ip_forward=1` in the `/etc/sysctl.conf` file to allow IPv4 packet forwarding. Reboot the server after the change so it will take effect
+- Modify the IPv4 forwarding functionality on the server in the `/etc/sysctl.conf` file with `sudo vi /etc/sysctl.conf`
+  - Uncomment the below line
+```
+net.ipv4.ip_forward=1
+```
+
+- Reboot the server after this change to have it take effect
 
 - Delete the current AWS Site-to-Site VPN, Customer Gateway, and Virtual Private Gateway if they exist
 
