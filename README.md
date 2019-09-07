@@ -202,6 +202,9 @@ access-list ACL_AWS_IPV6_VPN extended permit ip 192.168.0.0 255.255.255.0 172.31
 ```
 
 - Since we are now dealing with the legacy protocol (IPv4) which often uses NAT, you may need to add some NAT-exemption statments to the ASA for the VPN tunnel
+  - If you already have these NAT statements on the firewall (since you were running an IPv4 VPN to AWS previously), then you likely don’t need to change them
+
+- Delete your old IPv4 crypto-map entry pointed at AWS since you will now be using the same tunnel for that old IPv4 space as well as your shiny new IPv6 space
 
 - Modify the `/etc/ipsec.conf` settings on the Ubuntu instance with `sudo vi /etc/ipsec.conf` to reflect the below
 
